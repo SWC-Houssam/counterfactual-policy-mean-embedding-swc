@@ -6,6 +6,38 @@ import scipy.stats as st
 from sklearn.metrics import pairwise_distances
 
 
+def treatment_kernel(T1, T2=None, metric="rbf", lam=0.0, gamma=None):
+    """
+    Selects the appropriate kernel:
+    - Discrete kernel if T1 is binary
+    - RBF kernel otherwise
+    """
+    if T2 is None:
+        T2 = T1
+
+    is_binary = np.unique(T1).size <= 2 and np.all(np.isin(T1, [0, 1]))
+
+    if is_binary:
+        # Discrete kernel
+        K = (T1[:, None] == T2[None, :]).astype(float)
+        if T1 is not T2:
+            K[K == 0] = lam
+        return K
+    else:
+        # RBF or user-defined kernel
+        if gamma is None:
+            try:
+                dists = (
+                    pairwise_distances(T1[:, None], T2[:, None])
+                    if T1.ndim == 1
+                    else pairwise_distances(T1, T2)
+                )
+                gamma = 1.0 / (np.median(dists) ** 2 + 1e-8)
+            except:
+                gamma = 1.0
+        return pairwise_kernels(T1[:, None], T2[:, None], metric=metric, gamma=gamma)
+
+
 def xMMD2dr(
     Y,
     X,
@@ -24,28 +56,10 @@ def xMMD2dr(
     # sigmaKX = np.median(pairwise_distances(X[N2:, :], X[N2:, :], metric='euclidean'))**2
     sigmaKX = np.median(pairwise_distances(X[:, :], X[:, :], metric="euclidean")) ** 2
 
-    sigmaKT = (
-        np.median(
-            pairwise_distances(
-                logging_T[:, np.newaxis], logging_T[:, np.newaxis], metric="euclidean"
-            )
-        )
-        ** 2
-    )
     KX = pairwise_kernels(X, metric="rbf", gamma=1.0 / sigmaKX)
-    KT = pairwise_kernels(logging_T[:, np.newaxis], metric="rbf", gamma=1.0 / sigmaKT)
-    KT_pi = pairwise_kernels(
-        logging_T[:, np.newaxis],
-        pi_samples[:, np.newaxis],
-        metric="rbf",
-        gamma=1.0 / sigmaKT,
-    )
-    KT_pi_prime = pairwise_kernels(
-        logging_T[:, np.newaxis],
-        pi_prime_samples[:, np.newaxis],
-        metric="rbf",
-        gamma=1.0 / sigmaKT,
-    )
+    KT = treatment_kernel(logging_T, metric="rbf", lam=0.5)
+    KT_pi = treatment_kernel(logging_T, pi_samples, metric="rbf", lam=0.5)
+    KT_pi_prime = treatment_kernel(logging_T, pi_prime_samples, metric="rbf", lam=0.5)
     gamma = reg_lambda
 
     mu_logging = np.linalg.solve(
@@ -112,19 +126,22 @@ def xMMD2dr_cross_fit(
         ** 2
     )
     KX = pairwise_kernels(X, metric="rbf", gamma=1.0 / sigmaKX)
-    KT = pairwise_kernels(logging_T[:, np.newaxis], metric="rbf", gamma=1.0 / sigmaKT)
-    KT_pi = pairwise_kernels(
-        logging_T[:, np.newaxis],
-        pi_samples[:, np.newaxis],
-        metric="rbf",
-        gamma=1.0 / sigmaKT,
-    )
-    KT_pi_prime = pairwise_kernels(
-        logging_T[:, np.newaxis],
-        pi_prime_samples[:, np.newaxis],
-        metric="rbf",
-        gamma=1.0 / sigmaKT,
-    )
+    # KT = pairwise_kernels(logging_T[:, np.newaxis], metric="rbf", gamma=1.0 / sigmaKT)
+    # KT_pi = pairwise_kernels(
+    #     logging_T[:, np.newaxis],
+    #     pi_samples[:, np.newaxis],
+    #     metric="rbf",
+    #     gamma=1.0 / sigmaKT,
+    # )
+    # KT_pi_prime = pairwise_kernels(
+    #     logging_T[:, np.newaxis],
+    #     pi_prime_samples[:, np.newaxis],
+    #     metric="rbf",
+    #     gamma=1.0 / sigmaKT,
+    # )
+    KT = treatment_kernel(logging_T, metric="rbf")
+    KT_pi = treatment_kernel(logging_T, pi_samples, metric="rbf")
+    KT_pi_prime = treatment_kernel(logging_T, pi_prime_samples, metric="rbf")
     gamma = reg_lambda
 
     mu_logging_split1 = np.linalg.solve(

@@ -256,12 +256,13 @@ class GaussianPolicy:
     def __init__(self, w, scale=1.0):
         self.w = w
         self.scale = scale
+        self.intercept = 0.
 
     def sample_treatments(self, X):
         return np.random.normal(self.get_mean(X), self.scale)
 
     def get_mean(self, X):
-        return X @ self.w
+        return X @ self.w + self.intercept
 
     def get_propensities(self, X, t):
         mean = self.get_mean(X)
@@ -349,8 +350,10 @@ def make_scenario(scenario_id, seed=None):
         np.random.seed(seed)
 
     reg = LinearRegression().fit(X, T)
-    w_base = reg.coef_ + np.random.normal(scale=0.1, size=reg.coef_.shape[0])
+    w_base = reg.coef_ + np.random.normal(scale=0.1*np.std(reg.coef_), size=reg.coef_.shape[0])
     d = reg.coef_.shape[0]
+
+    shift_increment = std_dose
 
     if scenario_id == "I":
         # Null scenario: π = π′ (no difference)
@@ -359,19 +362,29 @@ def make_scenario(scenario_id, seed=None):
 
     elif scenario_id == "II":
         # Mean shift: π′ mean shifted along one direction
-        shift = 2 * np.ones(d)
+        # shift = 0.1*np.ones(d)*np.std(reg.coef_)
+        shift = np.ones(d)
         policy_pi = GaussianPolicy(w_base, scale=std_dose)
-        policy_pi_prime = GaussianPolicy(w_base + shift, scale=std_dose)
+        # policy_pi_prime = GaussianPolicy(w_base + shift, scale=std_dose)
+        policy_pi_prime = GaussianPolicy(w_base, scale=std_dose)
+        policy_pi_prime.intercept += shift_increment
+
 
     elif scenario_id == "III":
         # Mixture policy π′: bimodal
-        w1 = w_base + np.std(w_base) * np.ones(d)
-        w2 = w_base - np.std(w_base) * np.ones(d)
+        # w1 = w_base + 0.1*np.ones(d)*np.std(reg.coef_)
+        # w2 = w_base - 0.1*np.ones(d)*np.std(reg.coef_)
+        w1 = w_base + np.ones(d)
+        w2 = w_base - np.ones(d)
 
         class MixturePolicy:
             def __init__(self, w1, w2):
-                self.p1 = GaussianPolicy(w1, scale=std_dose)
-                self.p2 = GaussianPolicy(w2, scale=std_dose)
+                # self.p1 = GaussianPolicy(w1, scale=std_dose)
+                # self.p2 = GaussianPolicy(w2, scale=std_dose)
+                self.p1 = GaussianPolicy(w_base, scale=std_dose)
+                self.p1.intercept += shift_increment
+                self.p2 = GaussianPolicy(w_base, scale=std_dose)
+                self.p2.intercept -= shift_increment
 
             def sample_treatments(self, X):
                 mask = np.random.binomial(1, 0.5, size=X.shape[0])
@@ -389,13 +402,17 @@ def make_scenario(scenario_id, seed=None):
 
     elif scenario_id == "IV":
 
-        w1 = w_base + 2 * np.std(w_base) * np.ones(d)
+        # w1 = w_base + 0.1*np.ones(d)*np.std(reg.coef_)
+        w1 = w_base + np.ones(d)
         w2 = w_base
 
         class MixturePolicy:
             def __init__(self, w1, w2):
-                self.p1 = GaussianPolicy(w1, scale=std_dose)
-                self.p2 = GaussianPolicy(w2, scale=std_dose)
+                # self.p1 = GaussianPolicy(w1, scale=std_dose)
+                # self.p2 = GaussianPolicy(w2, scale=std_dose)
+                self.p1 = GaussianPolicy(w_base, scale=std_dose)
+                self.p1.intercept += shift_increment
+                self.p2 = GaussianPolicy(w_base, scale=std_dose)
 
             def sample_treatments(self, X):
                 mask = np.random.binomial(1, 0.5, size=X.shape[0])
@@ -418,7 +435,7 @@ def make_scenario(scenario_id, seed=None):
 
 
 def find_best_params(
-    X_log, A_log, Y_log, reg_grid=[1e1, 1e0, 0.1, 1e-2, 1e-3, 1e-4], num_cv=3
+    X_log, A_log, Y_log, reg_grid=[1e4, 1e3, 1e2, 1e1], num_cv=3
 ):
     kr = GridSearchCV(
         KernelRidge(kernel="rbf", gamma=0.1),
