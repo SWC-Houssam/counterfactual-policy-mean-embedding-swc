@@ -146,3 +146,8 @@ scripts/
 *.out
 *.log
 *.sh
+
+testing/experiment_parameters/
+testing/log/
+testing/results/
+testing/results_summary/
