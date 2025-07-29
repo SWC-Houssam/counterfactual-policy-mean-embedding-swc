@@ -109,7 +109,7 @@ def run_single_experiment(scenario_id, method, seed, iterations=1000):
 
 
 def get_parameters_experiment():
-    scenario_list = ["I", "III", "IV"]
+    scenario_list = ["I", "IV"]
     method_list = ["KPT-linear", "KPT-rbf", "KPT-poly", "DR-KPT-rbf", "DR-KPT-poly"]
     seeds = list(range(NB_SEEDS))
 
@@ -143,7 +143,7 @@ def run_from_arguments(args):
 def get_results_table():
     name_folder = RESULT_DIR
     alpha = 0.05
-    scenario_list = ["I", "III", "IV"]
+    scenario_list = ["I", "IV"]
     method_list = ["KPT-linear", "KPT-rbf", "KPT-poly", "DR-KPT-rbf", "DR-KPT-poly"]
 
     rejection_matrix = np.zeros((len(scenario_list), len(method_list)))

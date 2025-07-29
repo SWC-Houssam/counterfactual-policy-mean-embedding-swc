@@ -85,10 +85,10 @@ def make_scenario(scenario_id, sigma=0.1):
         pi = GaussianPolicy2D(theta=theta_base, beta=beta_base, sigma=sigma)
         pi_prime = GaussianPolicy2D(theta=theta_base, beta=beta_base, sigma=sigma)
 
-    elif scenario_id == "III":
-        # Same policy but outcomes modified via contrast scaling
-        pi = GaussianPolicy2D(theta=theta_base, beta=beta_base, sigma=sigma)
-        pi_prime = pi  # same action policy, outcome differs
+    # elif scenario_id == "III":
+    #     # Same policy but outcomes modified via contrast scaling
+    #     pi = GaussianPolicy2D(theta=theta_base, beta=beta_base, sigma=sigma)
+    #     pi_prime = pi  # same action policy, outcome differs
 
     elif scenario_id == "IV":
         pi = GaussianPolicy2D(theta=theta_base, beta=beta_base + 0.5, sigma=sigma)
