@@ -7,35 +7,34 @@ from sklearn.metrics import pairwise_distances
 
 
 def treatment_kernel(T1, T2=None, metric="rbf", lam=0.0, gamma=None):
-    """
-    Selects the appropriate kernel:
-    - Discrete kernel if T1 is binary
-    - RBF kernel otherwise
-    """
     if T2 is None:
         T2 = T1
 
-    is_binary = np.unique(T1).size <= 2 and np.all(np.isin(T1, [0, 1]))
+    T1 = ensure_2d(T1)
+    T2 = ensure_2d(T2)
+
+    is_binary = T1.shape[1] == 1 and np.all(np.isin(T1, [0, 1]))
 
     if is_binary:
-        # Discrete kernel
-        K = (T1[:, None] == T2[None, :]).astype(float)
+        K = (T1 == T2.T).astype(float)
         if T1 is not T2:
             K[K == 0] = lam
         return K
     else:
-        # RBF or user-defined kernel
         if gamma is None:
             try:
-                dists = (
-                    pairwise_distances(T1[:, None], T2[:, None])
-                    if T1.ndim == 1
-                    else pairwise_distances(T1, T2)
-                )
+                dists = pairwise_distances(T1, T2)
                 gamma = 1.0 / (np.median(dists) ** 2 + 1e-8)
             except:
                 gamma = 1.0
-        return pairwise_kernels(T1[:, None], T2[:, None], metric=metric, gamma=gamma)
+        return pairwise_kernels(T1, T2, metric=metric, gamma=gamma)
+
+
+def ensure_2d(T):
+    """Ensures treatment T is a 2D array of shape (n, d) for pairwise operations."""
+    if T.ndim == 1:
+        return T[:, np.newaxis]
+    return T
 
 
 def xMMD2dr(
@@ -115,16 +114,11 @@ def xMMD2dr_cross_fit(
         np.median(pairwise_distances(X[N2:, :], X[N2:, :], metric="euclidean")) ** 2
     )
 
+    T2 = ensure_2d(logging_T[N2:])
     sigmaKT = (
-        np.median(
-            pairwise_distances(
-                logging_T[N2:, np.newaxis],
-                logging_T[N2:, np.newaxis],
-                metric="euclidean",
-            )
-        )
-        ** 2
+        np.median(pairwise_distances(T2, T2, metric="euclidean")) ** 2
     )
+
     KX = pairwise_kernels(X, metric="rbf", gamma=1.0 / sigmaKX)
     # KT = pairwise_kernels(logging_T[:, np.newaxis], metric="rbf", gamma=1.0 / sigmaKT)
     # KT_pi = pairwise_kernels(

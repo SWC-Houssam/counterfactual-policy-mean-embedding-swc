@@ -8,7 +8,7 @@ import scipy.stats as st
 from sklearn.metrics import pairwise_distances
 from kpt import kernel_two_sample_test_reweight
 from dr_kpt import xMMD2dr_cross_fit
-from dsprite_utils import run_dsprite_experiment  # assumes your main logic is there
+from dsprite import run_dsprite_experiment  # assumes your main logic is there
 
 EXPNAME = "dsprite_experiment"
 RESULT_DIR = f"results/{EXPNAME}/"
@@ -129,15 +129,20 @@ def run_from_arguments(args):
         scenario_id=args.scenario, method=args.method, seed=args.seed
     )
     df = pd.DataFrame([result])
-    fname = f"{RESULT_DIR}/scenario{args.scenario}_{args.method}_seed{args.seed}.csv"
-    df.to_csv(fname, index=False)
-    print(f"Saved: {fname}")
+
+    # One file per scenario and method, all seeds appended
+    fname = f"{RESULT_DIR}/scenario{args.scenario}_{args.method}.csv"
+    if os.path.exists(fname):
+        df.to_csv(fname, mode="a", index=False, header=False)
+    else:
+        df.to_csv(fname, index=False)
+    print(f"Appended result to: {fname}")
+
 
 
 def get_results_table():
     name_folder = RESULT_DIR
     alpha = 0.05
-    seeds = range(NB_SEEDS)
     scenario_list = ["I", "III", "IV"]
     method_list = ["KPT-linear", "KPT-rbf", "KPT-poly", "DR-KPT-rbf", "DR-KPT-poly"]
 
@@ -145,17 +150,15 @@ def get_results_table():
 
     for i, scenario in enumerate(scenario_list):
         for j, method in enumerate(method_list):
-            rejections = []
-            for seed in seeds:
-                fname = f"{name_folder}/scenario{scenario}_{method}_seed{seed}.csv"
-                try:
-                    df = pd.read_csv(fname)
-                    rejections.append((df["p_value"] < alpha).mean())
-                except FileNotFoundError:
-                    print(f"File not found: {fname}")
-                    continue
-            if rejections:
-                rejection_matrix[i, j] = np.mean(rejections)
+            fname = f"{name_folder}/scenario{scenario}_{method}.csv"
+            try:
+                df = pd.read_csv(fname)
+                p_values = df["p_value"].dropna()
+                if len(p_values) > 0:
+                    rejection_matrix[i, j] = (p_values < alpha).mean()
+            except FileNotFoundError:
+                print(f"File not found: {fname}")
+                continue
 
     df_reject = pd.DataFrame(rejection_matrix, index=scenario_list, columns=method_list)
     print(df_reject)

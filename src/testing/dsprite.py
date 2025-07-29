@@ -91,8 +91,8 @@ def make_scenario(scenario_id, sigma=0.1):
         pi_prime = pi  # same action policy, outcome differs
 
     elif scenario_id == "IV":
-        pi = GaussianPolicy2D(theta=theta_base, beta=beta_base + 0.25, sigma=sigma)
-        pi_prime = GaussianPolicy2D(theta=theta_base, beta=beta_base - 0.25, sigma=sigma)
+        pi = GaussianPolicy2D(theta=theta_base, beta=beta_base + 0.5, sigma=sigma)
+        pi_prime = GaussianPolicy2D(theta=theta_base, beta=beta_base - 0.5, sigma=sigma)
 
     else:
         raise ValueError(f"Unknown scenario: {scenario_id}")
